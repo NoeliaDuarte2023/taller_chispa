@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taller de Motos - CHISPA</title>
+  
+  <!-- Tailwind CSS para diseño moderno -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Iconos Lucide -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.577.0/dist/umd/lucide.min.js"></script>
+  <!-- Fuentes Google -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --ink: #172022;
+      --charcoal: #263236;
+      --paper: #f3f0e8;
+      --orange: #f26522;
+      --mint: #b7ddc5;
+      --line: #d8d5ca;
+    }
+
+    * { box-sizing: border-box; }
+    body { font-family: "DM Sans", sans-serif; color: var(--ink); }
+    .mono { font-family: "Space Mono", monospace; }
+    
+    .workshop-grid {
+      background-color: #f8f6f0;
+      background-image:
+        linear-gradient(rgba(23,32,34,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,32,34,.045) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    
+    .metal-panel {
+      box-shadow: 6px 6px 0 rgba(23, 32, 34, .10);
+    }
+    
+    .modal-open { overflow: hidden; }
+    .status-pill { white-space: nowrap; }
+    
+    .toast {
+      transform: translateY(130%);
+      transition: transform .28s ease;
+    }
+    .toast.is-visible { transform: translateY(0); }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: 3px solid rgba(242, 101, 34, .25);
+      border-color: var(--orange);
+    }
+
+    /* Estilo para impresión de ticket */
+    @media print {
+      body * { visibility: hidden; }
+      #printable-ticket, #printable-ticket * { visibility: visible; }
+      #printable-ticket { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+
+<body class="w-full min-h-screen workshop-grid flex flex-col justify-between">
+
+  <!-- CABECERA -->
+  <header class="border-b-4 border-[#f26522] bg-[#263236] text-white">
+   <div class="w-full max-w-7xl mx-auto px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+     <div class="w-11 h-11 bg-[#f26522] text-[#172022] flex items-center justify-center rounded-sm font-bold shadow" aria-hidden="true">
+       <i data-lucide="wrench" class="w-6 h-6"></i>
+     </div>
+     <div>
+      <p class="mono text-xs tracking-[.18em] uppercase text-[#b7ddc5]">Sistema de Gestión</p>
+      <h1 class="font-bold text-xl leading-tight">🏍️ Taller de Motos PRO</h1>
+     </div>
+    </div>
+    
+    <!-- Botón Exportar a Excel en cabecera -->
+    <div class="flex items-center gap-3">
+      <button id="btn-export-excel" type="button" class="inline-flex items-center gap-2 bg-[#2d5a43] hover:bg-[#234634] text-white px-4 py-2 text-xs font-bold rounded-sm border border-[#b7ddc5] transition shadow-sm" title="Descargar todas las órdenes en Excel">
+        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-[#b7ddc5]"></i>
+        <span>Descargar Excel</span>
+      </button>
+      <div class="flex items-center gap-2 border border-[#b7ddc5] px-3 py-1.5 text-xs text-[#b7ddc5] rounded-sm">
+        <span class="w-2 h-2 bg-[#b7ddc5] rounded-full animate-pulse"></span> 
+        <span class="font-semibold">Guardado Activo</span>
+      </div>
+    </div>
+   </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="w-full max-w-7xl mx-auto px-5 py-8">
+   
+   <!-- SECCIÓN TÍTULO Y BOTÓN NUEVA ORDEN -->
+   <section class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
+    <div class="max-w-2xl">
+     <p class="mono text-xs uppercase tracking-[.17em] text-[#f26522] font-bold mb-1">Módulo de Control</p>
+     <h2 class="font-bold text-3xl text-[#172022]">Órdenes de Trabajo</h2>
+     <p class="mt-2 text-[#526064] text-sm max-w-xl">
+       Panel en tiempo real para motos en reparación, presupuestos y comunicación directa por WhatsApp.
+     </p>
+    </div>
+    
+    <button id="open-modal" type="button" class="inline-flex items-center justify-center gap-2 bg-[#f26522] text-[#172022] font-bold px-5 py-3 rounded-sm border-2 border-[#172022] shadow-[4px_4px_0_#172022] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition">
+      <i data-lucide="plus" class="w-5 h-5"></i> 
+      <span>+ Nueva Orden</span> 
+    </button>
+   </section>
+
+   <!-- TARJETAS DE MÉTRICAS (KPIs) -->
+   <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    
+    <!-- Tarjeta 1: En Proceso -->
+    <article class="bg-[#fffdf7] border border-[#d8d5ca] p-5 metal-panel rounded-sm">
+     <div class="flex justify-between gap-4">
+      <div>
+       <p class="text-sm font-semibold text-[#526064]">Motos en Proceso</p>
+       <p id="process-count" class="mono text-3xl font-bold mt-2 text-[#172022]">0</p>
+      </div>
+      <div class="p-2 bg-orange-100 rounded-full h-fit">
+        <i data-lucide="settings-2" class="w-6 h-6 text-[#f26522]"></i>
+      </div>
+     </div>
+    </article>
+
+    <!-- Tarjeta 2: Listas para entregar -->
+    <article class="bg-[#b7ddc5] border border-[#172022] p-5 metal-panel rounded-sm">
+     <div class="flex justify-between gap-4">
+      <div>
+       <p class="text-sm font-semibold text-[#263236]">Listas para Entregar</p>
+       <p id="ready-count" class="mono text-3xl font-bold mt-2 text-[#172022]">0</p>
+      </div>
+      <div class="p-2 bg-white/60 rounded-full h-fit">
+        <i data-lucide="circle-check-big" class="w-6 h-6 text-[#263236]"></i>
+      </div>
+     </div>
+    </article>
+
+    <!-- Tarjeta 3: Facturación Estimada -->
+    <article class="bg-[#263236] border border-[#172022] text-white p-5 metal-panel rounded-sm">
+     <div class="flex justify-between gap-4">
+      <div>
+       <p class="text-sm font-semibold text-[#dce5e1]">Facturación Estimada</p>
+       <p id="income-total" class="mono text-3xl font-bold mt-2 text-[#b7ddc5]">$0</p>
+      </div>
+      <div class="p-2 bg-[#f26522]/20 rounded-full h-fit">
+        <i data-lucide="badge-dollar-sign" class="w-6 h-6 text-[#f26522]"></i>
+      </div>
+     </div>
+    </article>
+   </section>
+
+   <!-- TABLA DE ÓRDENES -->
+   <section class="bg-[#fffdf7] border-2 border-[#172022] metal-panel rounded-sm">
+    <div class="p-5 border-b border-[#d8d5ca] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
+     <div>
+      <h3 class="font-bold text-lg text-[#172022]">Listado de Reparaciones Activas</h3>
+      <p class="text-xs text-[#526064] mt-0.5">Haz clic en WhatsApp para notificar al cliente o en la impresora para emitir ticket</p>
+     </div>
+     
+     <!-- Buscador -->
+     <div class="relative w-full md:w-80">
+       <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#526064]"></i> 
+       <input id="search-orders" type="search" placeholder="Buscar por cliente, moto o patente..." class="w-full bg-[#f8f6f0] border border-[#bdb9ad] rounded-sm pl-10 pr-3 py-2 text-sm">
+     </div>
+    </div>
+
+    <div class="overflow-x-auto">
+     <table class="w-full min-w-[760px] text-left">
+      <thead class="bg-[#e8e5dc] border-b border-[#d8d5ca]">
+       <tr class="mono text-xs uppercase tracking-wide text-[#526064]">
+        <th class="px-5 py-3 font-bold">CLIENTE</th>
+        <th class="px-5 py-3 font-bold">MOTO</th>
+        <th class="px-5 py-3 font-bold">SERVICIO</th>
+        <th class="px-5 py-3 font-bold">ESTADO</th>
+        <th class="px-5 py-3 font-bold">PRESUPUESTO</th>
+        <th class="px-5 py-3 font-bold text-center">ACCIONES / COMUNICACIÓN</th>
+       </tr>
+      </thead>
+      <tbody id="orders-list"></tbody>
+     </table>
+    </div>
+
+    <!-- Estado vacío -->
+    <div id="empty-state" class="p-12 text-center hidden">
+     <div class="w-12 h-12 mx-auto mb-3 bg-[#e8e5dc] flex items-center justify-center rounded-full text-[#526064]">
+       <i data-lucide="bike" class="w-6 h-6"></i>
+     </div>
+     <p class="font-bold text-[#172022]">No se encontraron órdenes</p>
+     <p class="text-xs text-[#526064] mt-1">Prueba con otro término o crea una nueva orden.</p>
+    </div>
+   </section>
+  </main>
+
+  <!-- MODAL DE NUEVA ORDEN -->
+  <div id="order-modal" class="hidden fixed inset-0 z-50 items-center justify-center p-4" role="dialog" aria-modal="true">
+   <div id="modal-backdrop" class="absolute inset-0 bg-[#172022]/75"></div>
+   
+   <section class="relative z-10 w-full max-w-2xl overflow-y-auto bg-[#fffdf7] border-2 border-[#172022] shadow-[8px_8px_0_#f26522] rounded-sm">
+    <div class="flex items-start justify-between gap-5 p-6 border-b border-[#d8d5ca] bg-white">
+     <div>
+      <p class="mono text-xs tracking-[.15em] uppercase text-[#f26522] font-bold">Ingreso al Taller</p>
+      <h3 class="font-bold text-xl text-[#172022] mt-0.5">Crear Nueva Orden de Trabajo</h3>
+     </div>
+     <button id="close-modal" type="button" class="w-9 h-9 inline-flex items-center justify-center border border-[#bdb9ad] hover:bg-[#e8e5dc] rounded-sm">
+       <i data-lucide="x" class="w-5 h-5"></i> 
+     </button>
+    </div>
+    
+    <form id="order-form" class="p-6">
+     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label for="customer" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Nombre del Cliente *</label> 
+        <input id="customer" name="customer" type="text" placeholder="Ej: Lucas Romero" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label for="phone" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">WhatsApp / Teléfono *</label> 
+        <input id="phone" name="phone" type="tel" placeholder="Ej: 5491122334455" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label for="bike" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Vehículo / Moto *</label> 
+        <input id="bike" name="bike" type="text" placeholder="Ej: Honda Tornado 250" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label for="plate" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Patente / Placa *</label> 
+        <input id="plate" name="plate" type="text" placeholder="Ej: A123BCD" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm uppercase">
+      </div>
+      <div>
+        <label for="service" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Motivo / Servicio *</label> 
+        <input id="service" name="service" type="text" placeholder="Ej: Cambio de aceite y filtro" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label for="budget" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Presupuesto Estimado ($) *</label> 
+        <input id="budget" name="budget" type="number" min="0" step="100" placeholder="Ej: 35000" required class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm">
+      </div>
+      <div class="md:col-span-2">
+        <label for="status" class="block text-xs font-bold uppercase tracking-wider text-[#526064] mb-1">Estado Inicial</label> 
+        <select id="status" name="status" class="w-full bg-white border border-[#bdb9ad] rounded-sm px-3 py-2 text-sm"> 
+          <option value="En proceso">En proceso</option> 
+          <option value="Listo para entregar">Listo para entregar</option> 
+          <option value="En espera de repuestos">En espera de repuestos</option> 
+        </select>
+      </div>
+     </div>
+
+     <p id="form-message" class="hidden mt-4 text-xs font-medium"></p>
+     
+     <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6 pt-4 border-t border-[#d8d5ca]">
+       <button id="cancel-form" type="button" class="border border-[#172022] px-5 py-2.5 text-sm font-bold hover:bg-[#e8e5dc] rounded-sm">
+         Cancelar
+       </button> 
+       <button id="save-order" type="submit" class="bg-[#f26522] text-[#172022] border-2 border-[#172022] px-5 py-2.5 text-sm font-bold hover:bg-[#ff7c40] rounded-sm shadow-[2px_2px_0_#172022]">
+         Guardar Orden
+       </button>
+     </div>
+    </form>
+   </section>
+  </div>
+
+  <!-- NOTIFICACIÓN TOAST -->
+  <div id="toast" class="toast fixed z-[60] bottom-5 right-5 bg-[#263236] text-white border-l-4 border-[#b7ddc5] px-4 py-3 shadow-lg rounded-sm flex items-center gap-2">
+    <i data-lucide="info" class="w-5 h-5 text-[#b7ddc5]"></i>
+    <span id="toast-message" class="text-sm font-medium"></span>
+  </div>
+
+  <!-- PLANTILLA DE FILA DE TABLA -->
+  <template id="order-row-template">
+   <tr class="border-b border-[#e4e1d7] hover:bg-[#faf7ee] transition" data-row-id="">
+    <td class="px-5 py-4">
+      <p class="font-bold text-[#172022] dynamic-customer"></p>
+      <p class="text-xs text-[#526064] dynamic-phone"></p>
+    </td>
+    <td class="px-5 py-4">
+      <p class="font-semibold dynamic-bike"></p>
+      <p class="mono text-xs text-[#526064] dynamic-plate"></p>
+    </td>
+    <td class="px-5 py-4 text-sm text-[#263236] dynamic-service"></td>
+    <td class="px-5 py-4">
+      <span class="status-pill inline-flex rounded-full px-3 py-1 text-xs font-bold dynamic-status"></span>
+    </td>
+    <td class="px-5 py-4 mono text-sm font-bold dynamic-budget text-[#172022]"></td>
+    <td class="px-5 py-4 text-center">
+      <div class="inline-flex items-center gap-1.5">
+        
+        <!-- Botón WhatsApp Directo -->
+        <a href="#" target="_blank" class="btn-whatsapp inline-flex items-center justify-center w-8 h-8 bg-[#25D366] text-white rounded-sm hover:opacity-90 transition shadow-xs" title="Enviar WhatsApp al cliente">
+          <i data-lucide="message-circle" class="w-4 h-4"></i>
+        </a>
+
+        <!-- Botón Imprimir Ticket -->
+        <button type="button" class="btn-print inline-flex items-center justify-center w-8 h-8 border border-[#bdb9ad] bg-white hover:bg-[#e8e5dc] text-[#172022] rounded-sm transition" title="Imprimir Comprobante de Taller">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Botón Eliminar -->
+        <button type="button" class="delete-order inline-flex items-center justify-center w-8 h-8 border border-[#bdb9ad] bg-white text-[#a62d17] hover:bg-[#ffe4da] rounded-sm transition" title="Eliminar orden"> 
+          <i data-lucide="trash-2" class="w-4 h-4"></i> 
+        </button>
+      </div>
+
+      <div class="delete-confirm hidden mt-2 justify-center items-center gap-2">
+        <span class="text-xs font-bold text-red-700">¿Eliminar?</span> 
+        <button type="button" class="confirm-delete text-xs bg-[#a62d17] text-white px-2 py-1 rounded-sm font-bold">Sí</button> 
+        <button type="button" class="cancel-delete text-xs border border-[#bdb9ad] px-2 py-1 rounded-sm">No</button>
+      </div>
+    </td>
+   </tr>
+  </template>
+
+  <!-- LÓGICA JAVASCRIPT PRO -->
+  <script>
+    const defaultOrders = [
+      { id: "ot-101", customer: "Lucía Fernández", phone: "1155667788", bike: "Honda Wave 110", plate: "A215KRT", service: "Service general y cambio de aceite", status: "En proceso", budget: 48500 },
+      { id: "ot-102", customer: "Marcos Díaz", phone: "1199887766", bike: "Yamaha FZ 2.0", plate: "A982LPM", service: "Cambio de kit transmisión", status: "Listo para entregar", budget: 72600 }
+    ];
+
+    let savedData = localStorage.getItem("taller_orders_storage_pro");
+    let orders = savedData ? JSON.parse(savedData) : defaultOrders;
+
+    function saveToStorage() {
+      localStorage.setItem("taller_orders_storage_pro", JSON.stringify(orders));
+    }
+
+    const list = document.getElementById("orders-list");
+    const emptyState = document.getElementById("empty-state");
+    const searchInput = document.getElementById("search-orders");
+    const modal = document.getElementById("order-modal");
+    const form = document.getElementById("order-form");
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function currency(value) {
+      return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: "ARS",
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function statusStyle(status) {
+      if (status === "Listo para entregar") return "background:#b7ddc5;color:#172022;";
+      if (status === "En espera de repuestos") return "background:#ffe3a5;color:#5c3b00;";
+      return "background:#fed7aa;color:#7c2d12;";
+    }
+
+    // Generar enlace directo a WhatsApp con texto predeterminado
+    function buildWhatsAppUrl(order) {
+      let cleanPhone = order.phone.replace(/[^0-9]/g, "");
+      // Si no tiene código de país, le sugerimos el 549 de Argentina
+      if (cleanPhone.length === 10) cleanPhone = "549" + cleanPhone;
+
+      const mensaje = `🏍️ *TALLER DE MOTOS* 🏍️\n\nHola *${order.customer}*, te informamos sobre el estado de tu moto:\n\n🛵 *Vehículo:* ${order.bike} (Patente: ${order.plate})\n🔧 *Trabajo:* ${order.service}\n📋 *Estado actual:* ${order.status}\n💰 *Presupuesto:* ${currency(order.budget)}\n\n¡Cualquier duda estamos a tu disposición!`;
+      
+      return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(mensaje)}`;
+    }
+
+    // Imprimir comprobante
+    function printTicket(order) {
+      const printWindow = window.open("", "_blank", "width=600,height=600");
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Comprobante - Orden ${order.id}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; color: #000; max-width: 400px; margin: auto; }
+            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
+            .title { font-size: 18px; font-weight: bold; }
+            .line { display: flex; justify-content: space-between; margin-bottom: 6px; }
+            .footer { border-top: 2px dashed #000; padding-top: 10px; margin-top: 15px; text-align: center; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">🏍️ TALLER DE MOTOS</div>
+            <div>COMPROBANTE DE SERVICIO</div>
+            <div style="font-size: 12px;">Orden: #${order.id}</div>
+          </div>
+          <div class="line"><span>Cliente:</span> <strong>${order.customer}</strong></div>
+          <div class="line"><span>Teléfono:</span> <span>${order.phone}</span></div>
+          <div class="line"><span>Moto:</span> <span>${order.bike}</span></div>
+          <div class="line"><span>Patente:</span> <strong>${order.plate}</strong></div>
+          <div class="line"><span>Servicio:</span> <span>${order.service}</span></div>
+          <div class="line"><span>Estado:</span> <span>${order.status}</span></div>
+          <div class="line" style="font-size: 16px; margin-top: 10px; border-top: 1px solid #000; padding-top: 6px;">
+            <span>TOTAL ESTIMADO:</span> <strong>${currency(order.budget)}</strong>
+          </div>
+          <div class="footer">
+            <p>Gracias por confiar en nuestro taller.</p>
+            <p>Conserve este talón para retirar su unidad.</p>
+          </div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    function createRow(order) {
+      const fragment = document.getElementById("order-row-template").content.cloneNode(true);
+      const row = fragment.querySelector("tr");
+      row.dataset.rowId = order.id;
+      row.querySelector(".dynamic-customer").textContent = order.customer;
+      row.querySelector(".dynamic-phone").textContent = order.phone;
+      row.querySelector(".dynamic-bike").textContent = order.bike;
+      row.querySelector(".dynamic-plate").textContent = order.plate;
+      row.querySelector(".dynamic-service").textContent = order.service;
+      row.querySelector(".dynamic-status").textContent = order.status;
+      row.querySelector(".dynamic-status").style.cssText = statusStyle(order.status);
+      row.querySelector(".dynamic-budget").textContent = currency(order.budget);
+
+      // WhatsApp
+      const whatsappBtn = row.querySelector(".btn-whatsapp");
+      whatsappBtn.href = buildWhatsAppUrl(order);
+
+      // Imprimir
+      row.querySelector(".btn-print").addEventListener("click", () => printTicket(order));
+
+      // Borrar
+      row.querySelector(".delete-order").addEventListener("click", () => {
+        row.querySelector(".delete-order").parentElement.classList.add("hidden");
+        row.querySelector(".delete-confirm").classList.remove("hidden");
+        row.querySelector(".delete-confirm").classList.add("flex");
+      });
+
+      row.querySelector(".cancel-delete").addEventListener("click", () => {
+        row.querySelector(".delete-order").parentElement.classList.remove("hidden");
+        row.querySelector(".delete-confirm").classList.add("hidden");
+        row.querySelector(".delete-confirm").classList.remove("flex");
+      });
+
+      row.querySelector(".confirm-delete").addEventListener("click", () => {
+        const index = orders.findIndex(item => item.id === order.id);
+        if (index !== -1) {
+          orders.splice(index, 1);
+          saveToStorage();
+        }
+        renderOrders();
+        showToast("Orden eliminada.");
+      });
+
+      return row;
+    }
+
+    function updateMetrics() {
+      const inProcess = orders.filter(order => order.status === "En proceso").length;
+      const ready = orders.filter(order => order.status === "Listo para entregar").length;
+      const total = orders.reduce((sum, order) => sum + order.budget, 0);
+      
+      document.getElementById("process-count").textContent = inProcess;
+      document.getElementById("ready-count").textContent = ready;
+      document.getElementById("income-total").textContent = currency(total);
+    }
+
+    function renderOrders() {
+      const term = searchInput.value.trim().toLowerCase();
+      const filtered = orders.filter(order =>
+        [order.customer, order.phone, order.bike, order.plate, order.service, order.status]
+          .some(value => value.toLowerCase().includes(term))
+      );
+
+      list.replaceChildren();
+      filtered.forEach(order => list.appendChild(createRow(order)));
+      emptyState.classList.toggle("hidden", filtered.length > 0);
+      updateMetrics();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function openModal() {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      document.body.classList.add("modal-open");
+      document.getElementById("customer").focus();
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      document.body.classList.remove("modal-open");
+      form.reset();
+    }
+
+    function showToast(message) {
+      document.getElementById("toast-message").textContent = message;
+      toast.classList.add("is-visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 3000);
+    }
+
+    // EXPORTAR A EXCEL (CSV)
+    document.getElementById("btn-export-excel").addEventListener("click", () => {
+      if (orders.length === 0) {
+        showToast("No hay órdenes para exportar.");
+        return;
+      }
+
+      let csvContent = "\uFEFF"; // Para acentos en Excel en español
+      csvContent += "ID;Cliente;Telefono;Moto;Patente;Servicio;Estado;Presupuesto\n";
+
+      orders.forEach(o => {
+        csvContent += `"${o.id}";"${o.customer}";"${o.phone}";"${o.bike}";"${o.plate}";"${o.service}";"${o.status}";"${o.budget}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Reporte_Taller_Motos_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("¡Reporte de Excel descargado con éxito!");
+    });
+
+    document.getElementById("open-modal").addEventListener("click", openModal);
+    document.getElementById("close-modal").addEventListener("click", closeModal);
+    document.getElementById("cancel-form").addEventListener("click", closeModal);
+    document.getElementById("modal-backdrop").addEventListener("click", closeModal);
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+    });
+
+    searchInput.addEventListener("input", renderOrders);
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const budget = Number(formData.get("budget"));
+
+      const newOrder = {
+        id: "OT-" + Math.floor(1000 + Math.random() * 9000),
+        customer: formData.get("customer").trim(),
+        phone: formData.get("phone").trim(),
+        bike: formData.get("bike").trim(),
+        plate: formData.get("plate").trim().toUpperCase(),
+        service: formData.get("service").trim(),
+        status: formData.get("status"),
+        budget
+      };
+
+      orders.unshift(newOrder);
+      saveToStorage();
+      renderOrders();
+      closeModal();
+      showToast("¡Orden registrada con éxito!");
+    });
+
+    renderOrders();
+  </script>
+</body>
+</html>
